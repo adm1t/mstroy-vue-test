@@ -1,11 +1,11 @@
-import { type TreeItem } from './types';
+import { type TreeItem, type TreeItemId, type TreeItemParent } from './types';
 
 /**
  * Универсальный класс для работы с древовидными структурами данных.
  */
 export class TreeStore<T extends TreeItem = TreeItem> {
-  private itemsMap = new Map<TreeItem['id'], T>();
-  private childrenMap = new Map<TreeItem['parent'], T[]>();
+  private itemsMap = new Map<TreeItemId, T>();
+  private childrenMap = new Map<TreeItemParent, T[]>();
 
   constructor(items: T[]) {
     this.init(items);
@@ -39,26 +39,40 @@ export class TreeStore<T extends TreeItem = TreeItem> {
   /**
    * Возвращает объект элемента по id
    */
-  public getItem(id: TreeItem['id']): T | undefined {
+  public getItem(id: TreeItemId): T | undefined {
     return this.itemsMap.get(id);
   }
 
   /**
    * Возвращает массив прямых потомков элемента
    */
-  public getChildren(id: TreeItem['id']): T[] {
+  public getChildren(id: TreeItemId): T[] {
     return this.childrenMap.get(id) || [];
   }
 
   /**
    * Возвращает потомков на всех уровнях вложенности.
    */
-  public getAllChildren(id: TreeItem['id']): T[] {
+  public getAllChildren(id: TreeItemId): T[] {
     const result: T[] = [];
-    const queue: (string | number)[] = [id];
+    const queue: TreeItemId[] = [id];
 
-    while (queue.length > 0) {
-      const currentId = queue.shift()!;
+    // Храним уже посещенные ID для защиты от бесконечного цикла
+    const visited = new Set<TreeItemId>();
+
+    // Используем указатель вместо .shift(), чтобы не перестраивать массив в памяти
+    let head = 0;
+
+    while (head < queue.length) {
+      const currentId = queue[head++];
+
+      if (visited.has(currentId)) {
+        throw new Error(
+          `[TreeStore Error]: Обнаружено зацикливание при каскадном обходе детей! Элемент ID: ${currentId} зациклен.`,
+        );
+      }
+      visited.add(currentId);
+
       const children = this.getChildren(currentId);
 
       if (children.length > 0) {
@@ -75,12 +89,22 @@ export class TreeStore<T extends TreeItem = TreeItem> {
   /**
    * Возвращает цепочку родителей от текущего элемента вверх до корня
    */
-  public getAllParents(id: TreeItem['id']): T[] {
+  public getAllParents(id: TreeItemId): T[] {
     const result: T[] = [];
     let currentItem = this.getItem(id);
+    const visited = new Set<TreeItemId>();
 
     while (currentItem) {
+      if (visited.has(currentItem.id)) {
+        // Выбрасываем исключение — данные повреждены
+        throw new Error(
+          `[TreeStore Error]: Обнаружено зацикливание иерархии! Элемент ID: ${currentItem.id} зациклен через родителя.`,
+        );
+      }
+      visited.add(currentItem.id);
+
       result.push(currentItem);
+
       if (currentItem.parent === null) {
         break;
       }
@@ -108,7 +132,7 @@ export class TreeStore<T extends TreeItem = TreeItem> {
   /**
    * Удаляет элемент и рекурсивно всех его потомков
    */
-  public removeItem(id: TreeItem['id']): void {
+  public removeItem(id: TreeItemId): void {
     const itemToRemove = this.getItem(id);
     if (!itemToRemove) return;
 
@@ -126,7 +150,7 @@ export class TreeStore<T extends TreeItem = TreeItem> {
     if (parentChildren) {
       this.childrenMap.set(
         parentId,
-        parentChildren.filter((child) => child.id !== id)
+        parentChildren.filter((child) => child.id !== id),
       );
     }
   }
@@ -149,7 +173,7 @@ export class TreeStore<T extends TreeItem = TreeItem> {
       if (oldChildren) {
         this.childrenMap.set(
           oldParentId,
-          oldChildren.filter((c) => c.id !== updatedItem.id)
+          oldChildren.filter((c) => c.id !== updatedItem.id),
         );
       }
 

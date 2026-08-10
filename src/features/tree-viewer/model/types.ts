@@ -1,6 +1,9 @@
+export type TreeItemId = string | number;
+export type TreeItemParent = string | number | null;
+
 export interface TreeItem {
-  id: string | number;
-  parent: string | number | null;
+  id: TreeItemId;
+  parent: TreeItemParent;
 }
 
 export interface TableRowItem extends TreeItem {

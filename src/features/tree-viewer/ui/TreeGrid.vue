@@ -28,9 +28,14 @@ const rowData = ref<TableRowItem[]>(props.store.getAll());
 const getRowId: GetRowIdFunc<TableRowItem> = (params) => String(params.data.id);
 
 const getDataPath: GetDataPath<TableRowItem> = (data) => {
-  const rawData = toRaw(data);
-  const parentsChain = props.store.getAllParents(rawData.id);
-  return [...parentsChain].reverse().map((item) => item.id.toString());
+  try {
+    const rawData = toRaw(data);
+    const parentsChain = props.store.getAllParents(rawData.id);
+    return [...parentsChain].reverse().map((item) => String(item.id));
+  } catch (error) {
+    console.error('Ошибка построения дерева в Ag-Grid:', error);
+    return [String(data.id)];
+  }
 };
 
 const defaultColDef = ref<ColDef>({
@@ -108,30 +113,31 @@ const onRowGroupOpened = (params: RowGroupOpenedEvent<TableRowItem>) => {
 </script>
 
 <template>
-  <ag-grid-vue
-    class="tree-grid"
-    dom-layout="autoHeight"
-    group-display-type="custom"
-    :theme="themeQuartz"
-    :column-defs="columnDefs"
-    :default-col-def="defaultColDef"
-    :row-data="rowData"
-    :tree-data="true"
-    :get-data-path="getDataPath"
-    :getRowId="getRowId"
-    :suppress-context-menu="true"
-    :suppress-movable-columns="true"
-    :suppress-cell-focus="true"
-    @grid-ready="onGridReady"
-    @row-group-opened="onRowGroupOpened"
-  />
+  <div class="tree-grid">
+    <ag-grid-vue
+      dom-layout="autoHeight"
+      group-display-type="custom"
+      :theme="themeQuartz"
+      :column-defs="columnDefs"
+      :default-col-def="defaultColDef"
+      :row-data="rowData"
+      :tree-data="true"
+      :get-data-path="getDataPath"
+      :getRowId="getRowId"
+      :suppress-context-menu="true"
+      :suppress-movable-columns="true"
+      :suppress-cell-focus="true"
+      @grid-ready="onGridReady"
+      @row-group-opened="onRowGroupOpened"
+    />
+  </div>
 </template>
 
 <style scoped>
 .tree-grid {
-    --ag-header-column-border-height: 100%;
-    --ag-header-font-weight: 700;
-    --ag-header-column-border: 1px solid #ddddde;
+  --ag-header-column-border-height: 100%;
+  --ag-header-font-weight: 700;
+  --ag-header-column-border: 1px solid #ddddde;
 }
 
 :deep(.font-weight-bold) {
